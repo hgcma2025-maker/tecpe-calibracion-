@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Registro de Calibración de Válvulas — TECPE S.A.</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a7abf">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512x512.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
   --bg-primary: #ffffff;
@@ -245,6 +253,9 @@ button { width: auto; cursor: pointer; }
   <div class="lbl">Identificación</div>
   <div class="g2">
     <div class="f"><label>Tag / Nº válvula</label><input type="text" id="tag" placeholder="Ej: VCT-001"/></div>
+    <div class="f"><label>Cliente</label><input type="text" id="cliente" placeholder="Ej: PAE / TECPE S.A."/></div>
+  </div>
+  <div class="g2">
     <div class="f"><label>Ubicación</label><input type="text" id="ubic" placeholder="Ej: Yacimiento Norte"/></div>
   </div>
   <div class="g3">
@@ -256,15 +267,23 @@ button { width: auto; cursor: pointer; }
   </div>
   <div class="g2">
     <div class="f"><label>Diámetro (pulgadas)</label>
-      <select id="dn"><option value="">—</option><option>2"</option><option>2 7/8"</option><option>3"</option><option>4"</option><option>5"</option><option>6"</option><option>7"</option><option>8"</option><option>9"</option><option>10"</option><option>11"</option><option>12"</option><option>13"</option><option>14"</option><option>15"</option><option>16"</option><option>17"</option><option>18"</option><option>19"</option><option>20"</option></select>
+      <select id="dn"><option value="">—</option><option>1"</option><option>1 1/2"</option><option>2"</option><option>2 1/16"</option><option>2 1/2"</option><option>2 7/8"</option><option>3"</option><option>4"</option><option>5"</option><option>6"</option><option>7"</option><option>8"</option><option>9"</option><option>10"</option><option>11"</option><option>12"</option><option>13"</option><option>14"</option><option>15"</option><option>16"</option><option>17"</option><option>18"</option><option>19"</option><option>20"</option></select>
     </div>
     <div class="f"><label>Rating (clase de presión)</label>
-      <select id="rating"><option value="">—</option><option>150</option><option>300</option><option>600</option><option>900</option><option>1500</option><option>2000</option></select>
+      <select id="rating"><option value="">—</option><option value="150">S-150 (150 PSI)</option><option value="200">S-200 (200 PSI)</option><option value="300">S-300 (300 PSI)</option><option value="600">S-600 (600 PSI)</option><option value="800">S-800 (800 PSI)</option><option value="900">S-900 (900 PSI)</option><option value="1500">S-1500 (1500 PSI)</option><option value="2000">S-2000 (2000 PSI)</option><option value="3000">S-3000 (3000 PSI)</option></select>
     </div>
   </div>
 
   <div class="hr"></div>
   <div class="lbl">Manómetro utilizado para calibrar</div>
+  <div class="g2">
+    <div class="f"><label>Seleccionar manómetro registrado</label>
+      <select id="mano-select"><option value="">— Seleccionar de la lista —</option></select>
+    </div>
+    <div class="f" id="mano-alert-wrap" style="display:none;justify-content:flex-end;align-items:flex-end">
+      <span id="mano-alert" style="font-size:12px;font-weight:700;padding:8px 12px;border-radius:6px;display:inline-block"></span>
+    </div>
+  </div>
   <div class="g3">
     <div class="f"><label>Marca / modelo</label><input type="text" id="mano-marca" placeholder="Ej: Baumer MAN-R40"/></div>
     <div class="f"><label>Número de serie</label><input type="text" id="mano-serie" placeholder="Ej: 021-A"/></div>
@@ -281,14 +300,17 @@ button { width: auto; cursor: pointer; }
   <div class="pbox">
     <div class="hint">Seleccionar fila para autocompletar el rating</div>
     <table class="ptbl" id="ptbl">
-      <thead><tr><th>Rating PSI</th><th>BAR</th><th>KG/CM²</th></tr></thead>
+      <thead><tr><th>Serie</th><th>PSI</th><th>BAR base</th><th>KG/CM² base</th></tr></thead>
       <tbody>
-        <tr data-psi="150" data-bar="10.3" data-kg="10.56"><td>150</td><td>10,3</td><td>10,56</td></tr>
-        <tr data-psi="300" data-bar="20.7" data-kg="21.13"><td>300</td><td>20,7</td><td>21,13</td></tr>
-        <tr data-psi="600" data-bar="41.4" data-kg="42.25"><td>600</td><td>41,4</td><td>42,25</td></tr>
-        <tr data-psi="900" data-bar="62.1" data-kg="63.38"><td>900</td><td>62,1</td><td>63,38</td></tr>
-        <tr data-psi="1500" data-bar="103.4" data-kg="105.63"><td>1500</td><td>103,4</td><td>105,63</td></tr>
-        <tr data-psi="2000" data-bar="137.9" data-kg="140.85"><td>2000</td><td>137,9</td><td>140,85</td></tr>
+        <tr data-psi="150"  data-bar="10.3"  data-kg="10.56" data-baras="11.4"  data-barcu="15.5"  data-kgas="11.6"  data-kgcu="17.4"><td>S-150</td><td>150</td><td>10,3</td><td>10,56</td></tr>
+        <tr data-psi="200"  data-bar="13.8"  data-kg="10.56" data-baras="15.2"  data-barcu="20.7"  data-kgas="11.6"  data-kgcu="17.4"><td>S-200</td><td>200</td><td>13,8</td><td>10,56</td></tr>
+        <tr data-psi="300"  data-bar="20.7"  data-kg="21.13" data-baras="22.8"  data-barcu="31.0"  data-kgas="23.2"  data-kgcu="34.9"><td>S-300</td><td>300</td><td>20,7</td><td>21,13</td></tr>
+        <tr data-psi="600"  data-bar="41.4"  data-kg="42.25" data-baras="45.5"  data-barcu="62.1"  data-kgas="46.5"  data-kgcu="69.7"><td>S-600</td><td>600</td><td>41,4</td><td>42,25</td></tr>
+        <tr data-psi="800"  data-bar="55.2"  data-kg="56.34" data-baras="60.7"  data-barcu="82.7"  data-kgas="62.0"  data-kgcu="93.0"><td>S-800</td><td>800</td><td>55,2</td><td>56,34</td></tr>
+        <tr data-psi="900"  data-bar="62.1"  data-kg="63.38" data-baras="68.3"  data-barcu="93.1"  data-kgas="69.7"  data-kgcu="104.6"><td>S-900</td><td>900</td><td>62,1</td><td>63,38</td></tr>
+        <tr data-psi="1500" data-bar="103.4" data-kg="105.63" data-baras="113.8" data-barcu="155.1" data-kgas="116.2" data-kgcu="174.3"><td>S-1500</td><td>1500</td><td>103,4</td><td>105,63</td></tr>
+        <tr data-psi="2000" data-bar="137.9" data-kg="140.85" data-baras="151.7" data-barcu="206.8" data-kgas="154.9" data-kgcu="232.4"><td>S-2000</td><td>2000</td><td>137,9</td><td>140,85</td></tr>
+        <tr data-psi="3000" data-bar="206.8" data-kg="211.27" data-baras="227.5" data-barcu="310.3" data-kgas="232.4" data-kgcu="348.6"><td>S-3000</td><td>3000</td><td>206,8</td><td>211,27</td></tr>
       </tbody>
     </table>
   </div>
@@ -324,7 +346,10 @@ button { width: auto; cursor: pointer; }
     <table class="dtbl">
       <thead><tr><th>Diámetro</th><th>Duración mínima</th></tr></thead>
       <tbody>
+        <tr><td>1"</td><td>15 s</td></tr>
+        <tr><td>1 1/2"</td><td>15 s</td></tr>
         <tr><td>2"</td><td>15 s</td></tr>
+        <tr><td>2 1/2"</td><td>15 s</td></tr>
         <tr><td>3" a 6"</td><td>60 s</td></tr>
         <tr><td>7" a 12"</td><td>120 s</td></tr>
         <tr><td>13" a 20"</td><td>300 s</td></tr>
@@ -378,7 +403,7 @@ button { width: auto; cursor: pointer; }
       <div class="hdr-title"><i class="ti ti-history" aria-hidden="true" style="vertical-align:-2px;margin-right:6px"></i>Historial de calibraciones</div>
       <div class="hdr-sub">Todos los registros de la sesión</div>
     </div>
-    <button class="btn-sec" onclick="exportCSV()" id="btn-csv" style="display:none"><i class="ti ti-file-download" aria-hidden="true"></i> Exportar CSV</button>
+    <button class="btn-sec" onclick="exportExcelHistorial()" id="btn-csv" style="display:none"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Exportar Excel</button>
   </div>
 
   <div class="kpi-row">
@@ -456,9 +481,119 @@ button { width: auto; cursor: pointer; }
 
 <script>
 var records=[], selPSI=null, selFac=1.1, selRes=null, dc=1, sortCol='id', sortDir=1;
-var pd={150:{bar:10.3,kg:10.56},300:{bar:20.7,kg:21.13},600:{bar:41.4,kg:42.25},900:{bar:62.1,kg:63.38},1500:{bar:103.4,kg:105.63},2000:{bar:137.9,kg:140.85}};
+
+// --- Conexión a Supabase (base de datos compartida entre todas las PC) ---
+var SUPABASE_URL = 'https://rzszsxkmcxeypjxswrkd.supabase.co';
+var SUPABASE_KEY = 'sb_publishable_JmktjetpmB3uhecgzsCaSw_9izDbTuQ';
+var sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function filaAObjeto(f){
+  return {
+    id:f.id, tag:f.tag, cliente:f.cliente, ubic:f.ubic, marca:f.marca, serie:f.serie,
+    tipo:f.tipo, dn:f.dn, rating:f.rating, factor:parseFloat(f.factor),
+    presBase:f.pres_base, presBase11:f.pres_base11, presBase15:f.pres_base15,
+    prealCuerpo:f.preal_cuerpo, prealAsiento:f.preal_asiento, instr:f.instr,
+    dur:f.dur, temp:f.temp, resultado:f.resultado, obs:f.obs, fecha:f.fecha,
+    oper:f.oper, insp:f.insp, manoMarca:f.mano_marca, manoSerie:f.mano_serie,
+    manoRango:f.mano_rango, manoFcal:f.mano_fcal, manoFvenc:f.mano_fvenc, manoCert:f.mano_cert
+  };
+}
+
+function refrescarVistaActual(){
+  var pagActiva=document.querySelector('.page.active').id;
+  if(pagActiva==='page-hist'){renderHist();renderKPI();}
+  if(pagActiva==='page-certs'){renderCertsList();}
+}
+
+async function cargarRegistros(){
+  try{
+    var res=await sb.from('calibraciones').select('*').order('numero',{ascending:false});
+    if(res.error){
+      console.error('Error cargando registros: '+(res.error.message||JSON.stringify(res.error)));
+      showToast('form','Error de conexión: '+(res.error.message||'ver consola'));
+      return;
+    }
+    records=(res.data||[]).map(filaAObjeto);
+    var maxNum=0;
+    (res.data||[]).forEach(function(f){if(f.numero>maxNum)maxNum=f.numero;});
+    dc=maxNum+1;
+    document.querySelector('#doc-num').textContent=gdn();
+    updateBadges();
+    refrescarVistaActual();
+  }catch(e){console.error('Error cargando registros: '+(e&&e.message?e.message:JSON.stringify(e)));}
+}
+
+function suscribirRealtime(){
+  sb.channel('calibraciones-cambios')
+    .on('postgres_changes',{event:'*',schema:'public',table:'calibraciones'},function(){
+      cargarRegistros();
+    })
+    .subscribe();
+}
+var pd={
+  150: {psi:150,  bar:10.3,  kg:10.56, baras:11.4,  barcu:15.5,  kgas:11.6,  kgcu:17.4,  psias:165,  psicu:225},
+  200: {psi:200,  bar:13.8,  kg:10.56, baras:15.2,  barcu:20.7,  kgas:11.6,  kgcu:17.4,  psias:220,  psicu:300},
+  300: {psi:300,  bar:20.7,  kg:21.13, baras:22.8,  barcu:31.0,  kgas:23.2,  kgcu:34.9,  psias:330,  psicu:450},
+  600: {psi:600,  bar:41.4,  kg:42.25, baras:45.5,  barcu:62.1,  kgas:46.5,  kgcu:69.7,  psias:660,  psicu:900},
+  800: {psi:800,  bar:55.2,  kg:56.34, baras:60.7,  barcu:82.7,  kgas:62.0,  kgcu:93.0,  psias:880,  psicu:1200},
+  900: {psi:900,  bar:62.1,  kg:63.38, baras:68.3,  barcu:93.1,  kgas:69.7,  kgcu:104.6, psias:990,  psicu:1350},
+  1500:{psi:1500, bar:103.4, kg:105.63,baras:113.8, barcu:155.1, kgas:116.2, kgcu:174.3, psias:1650, psicu:2250},
+  2000:{psi:2000, bar:137.9, kg:140.85,baras:151.7, barcu:206.8, kgas:154.9, kgcu:232.4, psias:2200, psicu:3000},
+  3000:{psi:3000, bar:206.8, kg:211.27,baras:227.5, barcu:310.3, kgas:232.4, kgcu:348.6, psias:3300, psicu:4500}
+};
+
+// Base de manómetros certificados — agregar nuevos siguiendo el mismo formato
+var manometros=[
+  {marca:'BAUMER', serie:'20407/1', rango:'0 – 2900 PSI (0 – 200 BAR)', fcal:'2025-08-27', fvenc:'2026-08-27', cert:'i-kontrol Nro. 0000-021149'},
+  {marca:'BAUMER', serie:'18424', rango:'0 – 5800 PSI', fcal:'2026-01-15', fvenc:'2027-01-15', cert:'221-3158'}
+];
+
+function populateManoSelect(){
+  var sel=document.querySelector('#mano-select');
+  manometros.forEach(function(m,i){
+    var opt=document.createElement('option');
+    opt.value=i;
+    opt.textContent=m.marca+' — Serie '+m.serie;
+    sel.appendChild(opt);
+  });
+}
+populateManoSelect();
+
+document.querySelector('#mano-select').addEventListener('change',function(){
+  var alertWrap=document.querySelector('#mano-alert-wrap');
+  var alertEl=document.querySelector('#mano-alert');
+  if(this.value===''){
+    ['mano-marca','mano-serie','mano-rango','mano-fcal','mano-fvenc','mano-cert'].forEach(function(id){document.querySelector('#'+id).value='';});
+    alertWrap.style.display='none';
+    return;
+  }
+  var m=manometros[parseInt(this.value,10)];
+  document.querySelector('#mano-marca').value=m.marca;
+  document.querySelector('#mano-serie').value=m.serie;
+  document.querySelector('#mano-rango').value=m.rango;
+  document.querySelector('#mano-fcal').value=m.fcal;
+  document.querySelector('#mano-fvenc').value=m.fvenc;
+  document.querySelector('#mano-cert').value=m.cert;
+
+  var hoy=new Date(); hoy.setHours(0,0,0,0);
+  var venc=new Date(m.fvenc+'T00:00:00');
+  var diffDias=Math.round((venc-hoy)/(1000*60*60*24));
+  alertWrap.style.display='flex';
+  if(diffDias<0){
+    alertEl.textContent='⚠ VENCIDO desde '+venc.toLocaleDateString('es-AR');
+    alertEl.style.background='#FCEBEB'; alertEl.style.color='#791F1F';
+  }else if(diffDias<=30){
+    alertEl.textContent='⚠ Vence en '+diffDias+' día(s)';
+    alertEl.style.background='#FFF4D6'; alertEl.style.color='#8A5A00';
+  }else{
+    alertEl.textContent='✓ Calibración vigente';
+    alertEl.style.background='#EAF3DE'; alertEl.style.color='#27500A';
+  }
+});
 
 document.querySelector('#fecha').value=new Date().toISOString().split('T')[0];
+cargarRegistros();
+suscribirRealtime();
 
 document.querySelectorAll('#ptbl tbody tr').forEach(function(tr){
   tr.addEventListener('click',function(){
@@ -480,18 +615,15 @@ document.querySelector('#rating').addEventListener('change',function(){
 function updateCalc(){
   if(!selPSI)return;
   var d=pd[selPSI];
-  var r11=(selPSI*1.5), r15=(selPSI*1.1);
-  var bar11=(d.bar*1.5).toFixed(1), kg11=(d.kg*1.5).toFixed(2);
-  var bar15=(d.bar*1.1).toFixed(1), kg15=(d.kg*1.1).toFixed(2);
   document.querySelector('#cdisp').classList.add('show');
-  document.querySelector('#cv-b').textContent=selPSI;
-  document.querySelector('#cv-b2').textContent=selPSI;
-  document.querySelector('#cv-r11').textContent=r11.toFixed(0)+' PSI';
-  document.querySelector('#cv-bar11').textContent=bar11.replace('.',',');
-  document.querySelector('#cv-kg11').textContent=kg11.replace('.',',');
-  document.querySelector('#cv-r15').textContent=r15.toFixed(0)+' PSI';
-  document.querySelector('#cv-bar15').textContent=bar15.replace('.',',');
-  document.querySelector('#cv-kg15').textContent=kg15.replace('.',',');
+  document.querySelector('#cv-b').textContent=selPSI+' PSI';
+  document.querySelector('#cv-b2').textContent=selPSI+' PSI';
+  document.querySelector('#cv-r11').textContent=d.psicu+' PSI';
+  document.querySelector('#cv-bar11').textContent=String(d.barcu).replace('.',',');
+  document.querySelector('#cv-kg11').textContent=String(d.kgcu).replace('.',',');
+  document.querySelector('#cv-r15').textContent=d.psias+' PSI';
+  document.querySelector('#cv-bar15').textContent=String(d.baras).replace('.',',');
+  document.querySelector('#cv-kg15').textContent=String(d.kgas).replace('.',',');
 }
 
 function setRes(r){
@@ -502,14 +634,16 @@ function setRes(r){
 
 function gdn(){return 'RC-'+String(dc).padStart(4,'0');}
 
-function saveRecord(){
+async function saveRecord(){
   var tag=document.querySelector('#tag').value.trim();
   if(!tag){showToast('form','Completá el tag de la válvula');return;}
   if(!selPSI){showToast('form','Seleccioná el rating de presión');return;}
   if(!selRes){showToast('form','Indicá el resultado');return;}
   if(!document.querySelector('#fecha').value){showToast('form','Ingresá la fecha');return;}
-  var rec={
-    id:gdn(), tag:tag,
+
+  var datos={
+    tag:tag,
+    cliente:document.querySelector('#cliente').value,
     ubic:document.querySelector('#ubic').value,
     marca:document.querySelector('#marca').value,
     serie:document.querySelector('#serie').value,
@@ -517,8 +651,8 @@ function saveRecord(){
     dn:document.querySelector('#dn').value,
     rating:selPSI, factor:selFac,
     presBase:(selPSI*selFac).toFixed(0),
-    presBase11:(selPSI*1.5).toFixed(0),
-    presBase15:(selPSI*1.1).toFixed(0),
+    presBase11:pd[selPSI]?pd[selPSI].psicu:null,
+    presBase15:pd[selPSI]?pd[selPSI].psias:null,
     prealCuerpo:document.querySelector('#preal-cuerpo').value||'—',
     prealAsiento:document.querySelector('#preal-asiento').value||'—',
     instr:document.querySelector('#instr').value,
@@ -536,19 +670,36 @@ function saveRecord(){
     manoFvenc:document.querySelector('#mano-fvenc').value||'—',
     manoCert:document.querySelector('#mano-cert').value||'—'
   };
-  records.unshift(rec); dc++;
-  document.querySelector('#doc-num').textContent=gdn();
-  updateBadges();
+
+  var btn=document.querySelector('.btn-pri');
+  if(btn)btn.disabled=true;
+
+  var res=await sb.rpc('crear_certificado',{datos:datos});
+
+  if(btn)btn.disabled=false;
+
+  if(res.error){
+    console.error('Error guardando el registro:',res.error);
+    showToast('form','Error al guardar. Revisá la conexión.');
+    return;
+  }
+
+  var nuevoId=res.data[0].id;
+  var rec=Object.assign({id:nuevoId},datos);
+
+  await cargarRegistros();
   buildCertHTML(rec,'cert-form-paper');
   var wrap=document.getElementById('cert-form-wrap');
   wrap.classList.add('show');
   wrap.scrollIntoView({behavior:'smooth',block:'start'});
   clearForm();
-  showToast('form','Registro '+rec.id+' guardado');
+  showToast('form','Registro '+nuevoId+' guardado');
 }
 
 function clearForm(){
-  ['tag','ubic','marca','serie','preal-cuerpo','preal-asiento','instr','dur','temp','obs','oper','insp','mano-marca','mano-serie','mano-rango','mano-fcal','mano-fvenc','mano-cert'].forEach(function(id){document.querySelector('#'+id).value='';});
+  ['tag','cliente','ubic','marca','serie','preal-cuerpo','preal-asiento','instr','dur','temp','obs','oper','insp','mano-marca','mano-serie','mano-rango','mano-fcal','mano-fvenc','mano-cert'].forEach(function(id){document.querySelector('#'+id).value='';});
+  document.querySelector('#mano-select').value='';
+  document.querySelector('#mano-alert-wrap').style.display='none';
   document.querySelector('#tipo').value='';
   document.querySelector('#dn').value=''; document.querySelector('#rating').value='';
   document.querySelector('#fecha').value=new Date().toISOString().split('T')[0];
@@ -628,10 +779,15 @@ function sortHist(col){
   renderHist();
 }
 
-function deleteRecord(id){
+async function deleteRecord(id){
   if(!confirm('¿Eliminar el registro '+id+'?'))return;
-  records=records.filter(function(r){return r.id!==id;});
-  updateBadges(); renderHist(); renderKPI();
+  var res=await sb.from('calibraciones').delete().eq('id',id);
+  if(res.error){
+    console.error('Error eliminando el registro:',res.error);
+    showToast('hist','Error al eliminar. Revisá la conexión.');
+    return;
+  }
+  await cargarRegistros();
 }
 
 function renderCertsList(){
@@ -647,6 +803,7 @@ function renderCertsList(){
       +'<div class="certs-btns">'
       +'<button class="ico-btn" onclick="showCertInPage(\'certs\',\''+r.id+'\')"><i class="ti ti-eye" aria-hidden="true"></i> Ver</button>'
       +'<button class="ico-btn" onclick="showAndPrint(\''+r.id+'\')"><i class="ti ti-printer" aria-hidden="true"></i> Imprimir</button>'
+      +'<button class="ico-btn" onclick="exportExcelCert(\''+r.id+'\')"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Excel</button>'
       +'</div></div>';
   }).join('');
 }
@@ -680,6 +837,7 @@ function buildCertHTML(r,targetId){
     +'<div class="cert-band '+(pass?'pass':'fail')+'">'+(pass?'APROBADO — Prueba de presión satisfactoria':'RECHAZADO — Prueba no satisfactoria')+'</div>'
     +'<div class="cert-grid">'
     +'<div class="cc"><small>Tag / válvula</small><strong>'+(r.tag||'—')+'</strong></div>'
+    +'<div class="cc"><small>Cliente</small><strong>'+(r.cliente||'—')+'</strong></div>'
     +'<div class="cc"><small>Ubicación</small><strong>'+(r.ubic||'—')+'</strong></div>'
     +'<div class="cc"><small>Marca</small><strong>'+(r.marca||'—')+'</strong></div>'
     +'<div class="cc"><small>Serie</small><strong>'+(r.serie||'—')+'</strong></div>'
@@ -782,18 +940,66 @@ function showToast(zone,msg){
   setTimeout(function(){t.classList.remove('show');},2500);
 }
 
-function exportCSV(){
-  var h=['ID','Tag','Línea','Ubicación','Marca','DN','Rating PSI','Factor','Presión prueba PSI','Presión real PSI','Instrumento','Duración s','Temp °C','Resultado','Observaciones','Fecha','Operador','Inspector'];
-  var rows=records.map(function(r){
-    return [r.id,r.tag,r.linea,r.ubic,r.marca,r.dn,r.rating,r.factor,r.presBase,r.preal,r.instr,r.dur,r.temp,r.resultado,r.obs,r.fecha,r.oper,r.insp]
-      .map(function(v){return '"'+(v||'').toString().replace(/"/g,'""')+'"';}).join(',');
-  });
-  var csv=[h.join(',')].concat(rows).join('\n');
-  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  a.href=url; a.download='calibracion_valvulas.csv'; a.click();
-  URL.revokeObjectURL(url);
+function buildExcelRow(r){
+  var fd=r.fecha?new Date(r.fecha+'T12:00:00').toLocaleDateString('es-AR'):'—';
+  var fcal=r.manoFcal&&r.manoFcal!=='—'?new Date(r.manoFcal+'T12:00:00').toLocaleDateString('es-AR'):'—';
+  var fvenc=r.manoFvenc&&r.manoFvenc!=='—'?new Date(r.manoFvenc+'T12:00:00').toLocaleDateString('es-AR'):'—';
+  return {
+    'N° Certificado':r.id,
+    'Fecha':fd,
+    'Tag / N° válvula':r.tag||'—',
+    'Cliente':r.cliente||'—',
+    'Ubicación':r.ubic||'—',
+    'Marca / fabricante':r.marca||'—',
+    'Serie':r.serie||'—',
+    'Tipo de válvula':r.tipo||'—',
+    'Diámetro':r.dn||'—',
+    'Rating (PSI)':r.rating||'—',
+    'Presión base (BAR)':r.rating&&pd[r.rating]?pd[r.rating].bar:'—',
+    'Presión base (KG/CM²)':r.rating&&pd[r.rating]?pd[r.rating].kg:'—',
+    'Presión requerida cuerpo ×1,5 (PSI)':r.presBase11||'—',
+    'Presión requerida cuerpo (BAR)':r.rating&&pd[r.rating]?pd[r.rating].barcu:'—',
+    'Presión requerida cuerpo (KG/CM²)':r.rating&&pd[r.rating]?pd[r.rating].kgcu:'—',
+    'Lectura manómetro cuerpo (PSI)':r.prealCuerpo||'—',
+    'Presión requerida asiento ×1,1 (PSI)':r.presBase15||'—',
+    'Presión requerida asiento (BAR)':r.rating&&pd[r.rating]?pd[r.rating].baras:'—',
+    'Presión requerida asiento (KG/CM²)':r.rating&&pd[r.rating]?pd[r.rating].kgas:'—',
+    'Lectura manómetro asiento (PSI)':r.prealAsiento||'—',
+    'Instrumento de medición':r.instr||'—',
+    'Duración de prueba (s)':r.dur||'—',
+    'Temperatura (°C)':r.temp||'—',
+    'Resultado':r.resultado||'—',
+    'Observaciones':r.obs||'—',
+    'Manómetro — Marca/modelo':r.manoMarca||'—',
+    'Manómetro — N° de serie':r.manoSerie||'—',
+    'Manómetro — Rango':r.manoRango||'—',
+    'Manómetro — Fecha calibración':fcal,
+    'Manómetro — Vencimiento calibración':fvenc,
+    'Manómetro — Certificado/trazabilidad':r.manoCert||'—',
+    'Operador':r.oper||'—',
+    'Inspector / Supervisor':r.insp||'—'
+  };
+}
+
+function exportExcelHistorial(){
+  if(!records.length){alert('No hay certificados generados todavía.');return;}
+  var rows=records.map(buildExcelRow);
+  var ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=Object.keys(rows[0]).map(function(){return {wch:20};});
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Certificados');
+  XLSX.writeFile(wb,'certificados_calibracion_TECPE.xlsx');
+}
+
+function exportExcelCert(id){
+  var r=records.find(function(x){return x.id===id;});
+  if(!r)return;
+  var rows=[buildExcelRow(r)];
+  var ws=XLSX.utils.json_to_sheet(rows);
+  ws['!cols']=Object.keys(rows[0]).map(function(){return {wch:20};});
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Certificado');
+  XLSX.writeFile(wb,'certificado_'+r.id+'.xlsx');
 }
 </script>
 </body>
